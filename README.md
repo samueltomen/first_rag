@@ -135,3 +135,83 @@ fetch_marseille → transform_marseille → validate_marseille ─┘
 
 ### Screenshot 4 — Logs de transform_paris avec les vraies données
 ![logs_transform_paris.png](screenshots/logs_transform_paris.png)
+
+---
+ 
+# TP 2B — Pipeline complet API → transformation → PostgreSQL
+ 
+## Objectif
+ 
+Construire un pipeline orchestré complet à partir d'Open-Meteo : récupération API, transformation, chargement PostgreSQL, traçabilité et paramétrage.
+
+---
+## Modifications apportées au DAG
+ 
+- Branchement d'un vrai PostgreSQL pour le chargement des données
+- Remplacement du `print` de `load_to_db` par de vraies insertions SQL
+- Remplacement de `log_execution` par `log_ingestion` qui écrit dans une table de suivi
+- Ajout des DAG Params pour rendre les villes configurables au trigger
+- Extension de `DEFAULT_CITIES` à 10 villes disponibles
+---
+ 
+## Script SQL
+ 
+```sql
+CREATE TABLE weather_data (
+    id SERIAL PRIMARY KEY,
+    city VARCHAR(100) NOT NULL,
+    temperature_c FLOAT NOT NULL,
+    windspeed_kmh FLOAT NOT NULL,
+    weather_code INT NOT NULL,
+    humidity_pct INT NOT NULL,
+    collected_at TIMESTAMP NOT NULL,
+    ingested_at TIMESTAMP DEFAULT NOW()
+);
+ 
+CREATE TABLE ingestion_log (
+    id SERIAL PRIMARY KEY,
+    dag_id VARCHAR(100),
+    run_id VARCHAR(255),
+    status VARCHAR(50),
+    cities_processed TEXT,
+    executed_at TIMESTAMP DEFAULT NOW()
+);
+```
+ 
+---
+ 
+## Villes disponibles
+ 
+| Ville | Latitude | Longitude |
+|---|---|---|
+| Paris | 48.8566 | 2.3522 |
+| Lyon | 45.7640 | 4.8357 |
+| Marseille | 43.2965 | 5.3698 |
+| Bordeaux | 44.8378 | -0.5792 |
+| Toulouse | 43.6047 | 1.4442 |
+| Nantes | 47.2184 | -1.5536 |
+| Strasbourg | 48.5734 | 7.7521 |
+| Lille | 50.6292 | 3.0573 |
+| Rennes | 48.1173 | -1.6778 |
+| Nice | 43.7102 | 7.2620 |
+ 
+---
+ 
+## DAG paramétrable
+ 
+Au moment du trigger, le champ `cities` permet de choisir quelles villes traiter parmi les 10 disponibles. Les tâches des villes non sélectionnées s'exécutent mais retournent immédiatement sans traitement.
+ 
+---
+ 
+## Preuve de bon fonctionnement
+ 
+### Screenshot 5 — Vue Grid avec les 10 villes
+![grid_tp2b.png](screenshots/grid_tp2b.png)
+
+### Screenshot 6 — Trigger avec villes personnalisées
+![trigger_params.png](screenshots/trigger_params.png)
+### Screenshot 7 — Données en base
+![weather_data_db.png](screenshots/weather_data_db.png)
+### Screenshot 8 — Table de suivi
+![ingestion_log_db.png](screenshots/ingestion_log_db.png)
+ 
