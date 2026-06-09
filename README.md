@@ -83,3 +83,55 @@ Chaque tâche possède un `on_failure_callback` qui déclenche une alerte si ell
 
 ### Screenshot 2 — Logs de la tâche fetch_paris
 ![logs_fetch_paris.png](screenshots/logs_fetch_paris.png)
+
+---
+
+# TP 2A — Préparer une ingestion API météo
+
+## Sujet
+
+Brancher une vraie API météo (Open-Meteo) et séparer la logique de récupération de la logique de transformation.
+
+---
+
+## Modifications apportées au DAG
+
+Une nouvelle couche `transform_*` a été ajoutée entre `fetch_*` et `validate_*`.
+
+### Nouvelle chaîne de dépendances par ville
+
+```
+fetch_paris     → transform_paris     → validate_paris     ─┐
+fetch_lyon      → transform_lyon      → validate_lyon      ─┼─► load_to_db ──► log_execution
+fetch_marseille → transform_marseille → validate_marseille ─┘
+```
+
+### Tâches et rôles
+
+| Tâche | Rôle |
+|---|---|
+| `fetch_*` | Appel HTTP réel à l'API Open-Meteo, stocke le JSON brut en XCom |
+| `transform_*` | Extrait uniquement les champs utiles du JSON brut, stocke le résultat en XCom |
+| `validate_*` | Vérifie que tous les champs requis sont présents et non nuls |
+| `load_to_db` | Récupère les données transformées des 3 villes et les insère en base |
+| `log_execution` | Toujours exécuté, trace le statut final du run |
+
+### Champs retenus et justification
+
+| Champ | Source | Justification |
+|---|---|---|
+| `temperature_c` | `current_weather.temperature` | Donnée métier principale |
+| `windspeed_kmh` | `current_weather.windspeed` | Indicateur de conditions météo |
+| `weather_code` | `current_weather.weathercode` | Code WMO — type de météo (0=clair, 2=nuageux…) |
+| `humidity_pct` | `hourly.relativehumidity_2m[0]` | Complément utile, non présent dans current_weather |
+| `collected_at` | `current_weather.time` | Horodatage de la mesure pour traçabilité |
+
+---
+
+## Preuve d'exécution
+
+### Screenshot 3 — Vue Grid avec les nouvelles tâches transform
+![grid_tp2a.png](screenshots/grid_tp2a.png)
+
+### Screenshot 4 — Logs de transform_paris avec les vraies données
+![logs_transform_paris.png](screenshots/logs_transform_paris.png)
